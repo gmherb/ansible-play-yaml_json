@@ -1,0 +1,39 @@
+- hosts: localhost
+  vars_prompt:
+
+    - name: FILE
+      prompt: Specify the path of the file to convert
+      private: no
+      default: test
+
+  vars:
+  tasks:
+
+    - name: Slurp File
+      slurp: 
+        src: '{{ FILE }}'
+      register: slurped_file
+
+    - name: Check File Type
+      block:
+        - name: Set yaml
+        set_fact:
+          file_type: yaml
+          file_content: "{{ slurped_file['content'] | b64decode | from_yaml | to_nice_json(indent=2) }}"
+      rescue:
+        set_fact:
+          file_type: json
+          file_content: "{{ slurped_file['content'] | b64decode | from_json | to_nice_yaml(indent=2) }}"
+
+    - name: Write JSON
+      copy:
+        content: "{{ variables['content'] | b64decode | from_json | to_nice_yaml(indent=2) }}"
+        dest: '{{ FILE | splitext[0] }}.json'
+      when: file_type == "yaml"
+
+    - name: Write YAML
+      copy:
+        content: "{{ variables['content'] | b64decode | from_yaml | to_nice_json(indent=2) }}"
+        dest: '{{ FILE | splitext[0] }}.yaml'
+      when: file_type == "json"
+
